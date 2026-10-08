@@ -10,6 +10,16 @@ Aplicación web para llevar el control de las piezas de un taller, con dos secci
 Con un botón **"Pedir"** la pieza salta de una sección a la otra con los datos ya
 rellenados, y queda marcada como **"En pedido"** hasta que la confirmas.
 
+Las inspecciones se agrupan por mes: las que aún tienen piezas por pedir
+arrastran al mes actual para que no se queden enterradas, y cuando todas sus
+piezas están pedidas pasan solas a **"Inspecciones hechas"**. Cada inspección
+admite un **cliente** opcional (particular, seguro o concesionario), que se ve
+también en las tarjetas de Pedidos.
+
+Los precios se escriben **sin IVA**, como los pasa el proveedor, y la app
+muestra el importe **con el 21% ya incluido** en cada pieza, en los totales y
+en cada tarjeta.
+
 Además: avisos de retraso, reclamación por WhatsApp, exportación a CSV/PDF y
 copias de seguridad automáticas con restauración.
 

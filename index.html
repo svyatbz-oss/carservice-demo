@@ -616,6 +616,12 @@
   .precio-val{font-size:0.85rem; color:var(--muted);}
   .precio-row.final .precio-val{font-size:0.97rem; font-weight:700; color:var(--ink);}
   .precio-row.final.has-discount .precio-val{color:var(--success);}
+  .precio-row.iva{
+    margin-top:2px;
+    padding-top:3px;
+    border-top:1px dashed var(--line);
+  }
+  .precio-row.iva .precio-val{color:var(--ink); font-weight:600;}
   .descuento-pct{
     font-family:'Barlow',sans-serif;
     font-size:12px;
@@ -786,6 +792,28 @@
     color:var(--muted);
     font-weight:500;
   }
+  .vehicle-cliente{
+    display:inline-block;
+    vertical-align:middle;
+    font-size:0.72rem;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    padding:2px 8px;
+    border-radius:999px;
+    background:var(--surface-2);
+    color:var(--muted);
+    white-space:nowrap;
+  }
+  /* Nombre del coche + cliente en la misma linea */
+  .vehicle-titleline{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+    min-width:0;
+  }
+  .vehicle-name .vehicle-cliente{margin-left:8px;}
 
   @media (max-width:560px){
     form#add-form, form#insp-form{grid-template-columns:1fr;}
@@ -839,8 +867,11 @@
       width:auto;
       margin:0;
     }
-    /* On mobile the car name sits by the plate, so drop the inline copy */
+    /* On mobile the car name sits by the plate, so drop the inline copy.
+       The client chip stays in the summary instead: next to the plate it
+       widens that line enough to push the name over the plate. */
     .vehicle-summary .vehicle-marca{display:none;}
+    .vehicle-name .vehicle-cliente{display:none;}
 
     /* Keep the header price compact on mobile: hide only the discount chip
        (the price stack itself is narrow); the -X% shows in the expanded rows. */
@@ -851,7 +882,8 @@
     #pending-list .piece-row .piece-body,
     #history-list .piece-row .piece-body{flex:1 1 100%;}
     /* Inspection cards: stack car name + VIN */
-    #insp-list .vehicle-summary{
+    #insp-list .vehicle-summary,
+    #insp-done-list .vehicle-summary{
       flex-direction:column;
       align-items:flex-start;
       gap:3px;
@@ -1366,6 +1398,15 @@
           <input id="i-marca" type="text" placeholder="Seat León" maxlength="40" autocomplete="off">
         </div>
         <div class="field">
+          <label for="i-cliente">Cliente — opcional</label>
+          <input id="i-cliente" type="text" list="clientes-list" placeholder="Particular, seguro o concesionario" maxlength="40" autocomplete="off">
+          <datalist id="clientes-list">
+            <option value="Particular"></option>
+            <option value="Seguro"></option>
+            <option value="Concesionario"></option>
+          </datalist>
+        </div>
+        <div class="field">
           <label for="i-bastidor">Bastidor (VIN) — opcional</label>
           <input id="i-bastidor" type="text" placeholder="VSSZZZ..." maxlength="17" autocomplete="off" style="text-transform:uppercase;">
         </div>
@@ -1417,6 +1458,12 @@
     </div>
     <div id="insp-list"><div class="loading">Cargando inspecciones...</div></div>
 
+    <div class="section-head">
+      <h3>Inspecciones hechas</h3>
+      <span class="toggle-link" id="toggle-insp-hechas">Mostrar</span>
+    </div>
+    <div id="insp-done-list" style="display:none;"></div>
+
     <p class="data-note">Anota lo que el mecánico detecta. Cuando llames al proveedor, pulsa "Pedir" en cada pieza para pasarla a Pedidos.</p>
   </section>
 </div>
@@ -1456,12 +1503,15 @@
 // ============================================================
 const SUPABASE_URL = '';        // p.ej. 'https://xxxxxxxx.supabase.co'
 const SUPABASE_ANON_KEY = '';   // la clave "anon public"
+const SUPABASE_TABLE = 'pedidos';
+const SUPABASE_ROW_ID = 'taller-principal'; // un identificador para el taller
 
 const STORAGE_KEY = 'pedidos-data';
 const BACKUP_KEY = 'pedidos-last-backup';
 let pedidos = [];
 let inspecciones = [];
 let historialVisible = false;
+let inspHechasVisible = false;
 let expandedGroups = new Set(); // cards start collapsed; a key here means expanded
 let lastBackupISO = null;
 
@@ -1580,9 +1630,30 @@ function rowToPedido(r){
   if(r.fecha_recibido) p.fechaRecibido = r.fecha_recibido;
   return p;
 }
+let inspClienteCol = true; // se pone en false si la base de datos todavia no tiene la columna
 function inspToRow(insp){
+  if(!inspClienteCol){
+    const r = inspToRowFull(insp);
+    delete r.cliente;
+    return r;
+  }
+  return inspToRowFull(insp);
+}
+function faltaColumnaCliente(e){
+  return /cliente/i.test(String(e && e.message || ''));
+}
+// Si falta la columna se guarda el resto, pero hay que decirlo: si no,
+// parecería que el cliente se ha guardado cuando no es así.
+let avisoClienteMostrado = false;
+function avisarFaltaColumnaCliente(){
+  if(avisoClienteMostrado) return;
+  avisoClienteMostrado = true;
+  showToast('Guardado, pero el campo Cliente no: falta la columna "cliente" en la base de datos. Ejecuta supabase-cliente.sql en Supabase.', true);
+}
+function inspToRowFull(insp){
   return {
     id: insp.id, matricula: insp.matricula, marca: insp.marca || null,
+    cliente: insp.cliente || null,
     bastidor: insp.bastidor || null, fecha_matriculacion: insp.fechaMatriculacion || null,
     creada: insp.creada || null, piezas: insp.piezas || [], updated_at: new Date().toISOString()
   };
@@ -1592,6 +1663,7 @@ function rowToInsp(r){
   try{ piezas = Array.isArray(r.piezas) ? r.piezas : (r.piezas ? JSON.parse(r.piezas) : []); }catch(e){ piezas = []; }
   return {
     id: r.id, matricula: r.matricula || '', marca: r.marca || '',
+    cliente: r.cliente || '',
     bastidor: r.bastidor || '', fechaMatriculacion: r.fecha_matriculacion || '',
     creada: r.creada || '', piezas
   };
@@ -1604,7 +1676,7 @@ async function sbUpsertRow(table, rowObj){
     headers:{ 'Content-Type':'application/json', 'Prefer':'resolution=merge-duplicates' },
     body: JSON.stringify(rowObj)
   });
-  if(!res.ok) throw new Error(table + ' upsert ' + res.status);
+  if(!res.ok) throw new Error(table + ' upsert ' + res.status + ' ' + await res.text().catch(()=>''));
 }
 async function sbDeleteRow(table, id){
   const res = await sbFetch(`${SUPABASE_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, { method:'DELETE' });
@@ -1617,7 +1689,7 @@ async function sbInsertMany(table, rowObjs){
     headers:{ 'Content-Type':'application/json', 'Prefer':'resolution=merge-duplicates' },
     body: JSON.stringify(rowObjs)
   });
-  if(!res.ok) throw new Error(table + ' insert-many ' + res.status);
+  if(!res.ok) throw new Error(table + ' insert-many ' + res.status + ' ' + await res.text().catch(()=>''));
 }
 
 // --- Load / save pedidos ---------------------------------------------------
@@ -1686,7 +1758,13 @@ async function loadInspecciones(){
 async function saveInspeccion(insp){
   if(usingSupabase()){
     try{ await sbUpsertRow(T_INS, inspToRow(insp)); }
-    catch(e){ showToast('No se pudieron guardar los cambios en la base de datos.', true); }
+    catch(e){
+      if(inspClienteCol && faltaColumnaCliente(e)){
+        inspClienteCol = false;
+        try{ await sbUpsertRow(T_INS, inspToRow(insp)); avisarFaltaColumnaCliente(); return; }catch(e2){}
+      }
+      showToast('No se pudieron guardar los cambios en la base de datos.', true);
+    }
     return;
   }
   try{ localStorage.setItem('inspecciones-data', JSON.stringify(inspecciones)); }catch(e){}
@@ -1704,7 +1782,13 @@ async function removeInspeccion(id){
 async function saveInspeccionesMany(list){
   if(usingSupabase()){
     try{ await sbInsertMany(T_INS, list.map(inspToRow)); }
-    catch(e){ showToast('No se pudieron guardar todas las inspecciones.', true); }
+    catch(e){
+      if(inspClienteCol && faltaColumnaCliente(e)){
+        inspClienteCol = false;
+        try{ await sbInsertMany(T_INS, list.map(inspToRow)); avisarFaltaColumnaCliente(); return; }catch(e2){}
+      }
+      showToast('No se pudieron guardar todas las inspecciones.', true);
+    }
     return;
   }
   try{ localStorage.setItem('inspecciones-data', JSON.stringify(inspecciones)); }catch(e){}
@@ -1813,6 +1897,16 @@ function precioFinal(p){
   return Math.round((p.precio * (1 - pct/100)) * 100) / 100;
 }
 
+// Los precios se escriben SIN IVA (como los pasa el proveedor).
+// Aqui se le suma el 21% para saber lo que se paga de verdad.
+const IVA_RATE = 0.21;
+function conIVA(importe){
+  return Math.round(importe * (1 + IVA_RATE) * 100) / 100;
+}
+function precioConIVA(p){
+  return conIVA(precioFinal(p));
+}
+
 function parseDDMMYY(str){
   const m = (str||'').trim().match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
   if(!m) return null;
@@ -1877,6 +1971,7 @@ function renderSummary(pendientes){
     <div class="pill">Pendientes <strong>${pendientes.length}</strong></div>
     <div class="pill">Importe sin descuento <strong>${formatEuro(totalLista)}</strong></div>
     <div class="pill">Importe con descuento <strong>${formatEuro(totalDesc)}</strong></div>
+    <div class="pill">Con IVA (21%) <strong>${formatEuro(conIVA(totalDesc))}</strong></div>
     <div class="pill ${overdue>0?'warn':''}">Con retraso (5+ días) <strong>${overdue}</strong></div>
   `;
 }
@@ -1913,6 +2008,10 @@ function pieceRowHTML(p, isHistory){
         <span class="precio-val">${formatEuro(final)}</span>
         ${pct>0 ? `<span class="descuento-pct">-${pct}%</span>` : ''}
       </div>
+      <div class="precio-row iva">
+        <span class="precio-label">Con IVA (21%)</span>
+        <span class="precio-val">${formatEuro(precioConIVA(p))}</span>
+      </div>
     </div>
   `;
   const right = isHistory
@@ -1941,6 +2040,23 @@ function pieceRowHTML(p, isHistory){
   `;
 }
 
+// El cliente se anota en la inspeccion; aqui se busca por matricula para
+// poder mostrarlo tambien en las tarjetas de Pedidos.
+function clienteDeMatricula(matricula){
+  const mat = (matricula || '').toUpperCase();
+  let best = null;
+  inspecciones.forEach(i=>{
+    if((i.matricula || '').toUpperCase() !== mat) return;
+    if(!i.cliente) return;
+    if(!best || (i.creada || '') > (best.creada || '')) best = i;
+  });
+  return best ? best.cliente : '';
+}
+
+function clienteChipHTML(cliente){
+  return cliente ? `<span class="vehicle-cliente">${escapeHTML(cliente)}</span>` : '';
+}
+
 function groupHTML(g, isHistory){
   const totalLista = g.items.reduce((s,p)=>s+p.precio,0);
   const totalDesc = g.items.reduce((s,p)=>s+precioFinal(p),0);
@@ -1964,15 +2080,20 @@ function groupHTML(g, isHistory){
   }
 
   const pctCard = totalLista > 0 ? Math.round((totalLista - totalDesc) / totalLista * 100) : 0;
+  // En la tarjeta el importe se muestra ya con el IVA incluido.
   const priceStack = hasDiscount
-    ? `<div class="vehicle-price"><span class="vehicle-total">${formatEuro(totalDesc)}</span><span class="vehicle-total-was">${formatEuro(totalLista)}</span></div>`
-    : `<div class="vehicle-price"><span class="vehicle-total">${formatEuro(totalLista)}</span></div>`;
+    ? `<div class="vehicle-price"><span class="vehicle-total">${formatEuro(conIVA(totalDesc))}</span><span class="vehicle-total-was">${formatEuro(conIVA(totalLista))}</span></div>`
+    : `<div class="vehicle-price"><span class="vehicle-total">${formatEuro(conIVA(totalLista))}</span></div>`;
   const discountChip = (hasDiscount && pctCard > 0) ? `<span class="descuento-pct">-${pctCard}%</span>` : '';
   const totalHTML = priceStack + discountChip;
 
   const marcaGrupo = g.items.map(p=>p.marca).find(m=>m) || '';
-  const nameHTML = marcaGrupo ? `<span class="vehicle-name">${escapeHTML(marcaGrupo)}</span>` : '';
-  const marcaTitle = marcaGrupo ? `<span class="vehicle-marca">${escapeHTML(marcaGrupo)}</span>` : '';
+  const clienteGrupo = clienteDeMatricula(g.matricula);
+  const chip = clienteChipHTML(clienteGrupo);
+  const nameHTML = (marcaGrupo || clienteGrupo)
+    ? `<span class="vehicle-name">${escapeHTML(marcaGrupo)}${chip}</span>` : '';
+  const marcaTitle = (marcaGrupo || clienteGrupo)
+    ? `<div class="vehicle-titleline">${marcaGrupo ? `<span class="vehicle-marca">${escapeHTML(marcaGrupo)}</span>` : ''}${chip}</div>` : '';
   const estadoWord = isHistory ? (count === 1 ? 'recibida' : 'recibidas') : (count === 1 ? 'pendiente' : 'pendientes');
   const countLine = `${piezaLabel} ${estadoWord}`;
 
@@ -2372,6 +2493,11 @@ document.getElementById('cancel-edit-btn').addEventListener('click', cancelEdit)
 
 document.getElementById('search').addEventListener('input', render);
 
+document.getElementById('toggle-insp-hechas').addEventListener('click', ()=>{
+  inspHechasVisible = !inspHechasVisible;
+  renderInspecciones();
+});
+
 document.getElementById('toggle-historial').addEventListener('click', ()=>{
   historialVisible = !historialVisible;
   document.getElementById('history-list').style.display = historialVisible ? 'block' : 'none';
@@ -2646,6 +2772,7 @@ function inspMatchesQ(insp, q){
   if(!q) return true;
   if(insp.matricula.toLowerCase().includes(q)) return true;
   if((insp.marca||'').toLowerCase().includes(q)) return true;
+  if((insp.cliente||'').toLowerCase().includes(q)) return true;
   return insp.piezas.some(pz => pz.nombre.toLowerCase().includes(q));
 }
 
@@ -2699,14 +2826,15 @@ function inspCardHTML(insp){
   }
 
   const allDone = total > 0 && pedidas === total;
+  const chip = clienteChipHTML(insp.cliente);
 
   return `
     <div class="vehicle-group ${allDone ? 'done' : ''} ${collapsed ? 'collapsed' : ''}" data-key="insp_${insp.id}">
       <div class="vehicle-header" onclick="toggleGroup('insp_${insp.id}')">
         ${plateHTML(insp.matricula)}
-        ${marca ? `<span class="vehicle-name">${marca}</span>` : ''}
+        ${(marca || insp.cliente) ? `<span class="vehicle-name">${marca}${chip}</span>` : ''}
         <div class="vehicle-summary">
-          ${marca ? `<span class="vehicle-marca">${marca}</span>` : ''}
+          ${(marca || insp.cliente) ? `<div class="vehicle-titleline">${marca ? `<span class="vehicle-marca">${marca}</span>` : ''}${chip}</div>` : ''}
           <span class="vehicle-count">${resumen}</span>
           ${insp.bastidor ? `<span class="vehicle-fecha-mat">Bastidor ${escapeHTML(insp.bastidor)}</span>` : ''}
           ${insp.fechaMatriculacion ? `<span class="vehicle-fecha-mat">Matriculado ${formatFecha(insp.fechaMatriculacion)}</span>` : ''}
@@ -2726,16 +2854,70 @@ function inspCardHTML(insp){
   `;
 }
 
+// Una inspección está "hecha" cuando todas sus piezas ya están pedidas.
+function inspAllDone(insp){
+  const total = insp.piezas.length;
+  return total > 0 && insp.piezas.filter(p=>p.estado === 'pedido').length === total;
+}
+
+// Las inspecciones ya hechas se archivan en el mes en que se crearon.
+function inspMonthKey(insp){
+  return (insp.creada || '').slice(0,7) || 'sin-fecha';
+}
+// Las que aún tienen piezas pendientes arrastran al mes actual, para que no
+// se queden enterradas en meses viejos.
+function mesActual(){
+  return todayISO().slice(0,7);
+}
+
+function renderInspGroupedByMonth(el, list, emptyMsg, keyFn){
+  if(!list.length){
+    el.innerHTML = `<div class="empty">${emptyMsg}</div>`;
+    return;
+  }
+  const byMonth = new Map();
+  list.forEach(insp=>{
+    const ym = keyFn(insp);
+    if(!byMonth.has(ym)) byMonth.set(ym, []);
+    byMonth.get(ym).push(insp);
+  });
+  const months = Array.from(byMonth.keys()).sort((a,b)=> b.localeCompare(a));
+  el.innerHTML = months.map(ym=>{
+    const items = byMonth.get(ym);
+    const n = items.length;
+    return `<div class="month-group">
+      <div class="month-head">${monthLabel(ym)} <span class="month-count">${n} ${n===1?'inspección':'inspecciones'}</span></div>
+      ${items.map(inspCardHTML).join('')}
+    </div>`;
+  }).join('');
+}
+
 function renderInspecciones(){
   const q = document.getElementById('insp-search').value.trim().toLowerCase();
   const list = inspecciones
     .filter(insp => inspMatchesQ(insp, q))
     .slice()
     .sort((a,b)=> (b.creada||'').localeCompare(a.creada||''));
-  const el = document.getElementById('insp-list');
-  el.innerHTML = list.length
-    ? list.map(inspCardHTML).join('')
-    : `<div class="empty">No hay inspecciones. Añade la primera arriba.</div>`;
+  const pendientes = list.filter(insp => !inspAllDone(insp));
+  const hechas = list.filter(insp => inspAllDone(insp));
+
+  renderInspGroupedByMonth(
+    document.getElementById('insp-list'), pendientes,
+    q ? 'Ninguna inspección pendiente coincide con la búsqueda.'
+      : 'No hay inspecciones. Añade la primera arriba.',
+    mesActual);
+
+  renderInspGroupedByMonth(
+    document.getElementById('insp-done-list'), hechas,
+    q ? 'Ninguna inspección hecha coincide con la búsqueda.'
+      : 'Todavía no hay inspecciones con todas las piezas pedidas.',
+    inspMonthKey);
+
+  // Si hay una búsqueda activa, se abre sola para que no se escondan resultados.
+  const showDone = inspHechasVisible || (!!q && hechas.length > 0);
+  document.getElementById('insp-done-list').style.display = showDone ? 'block' : 'none';
+  document.getElementById('toggle-insp-hechas').textContent =
+    (showDone ? 'Ocultar' : 'Mostrar') + (hechas.length ? ` (${hechas.length})` : '');
 }
 
 // --- Dynamic part rows (name + optional reference) ---
@@ -2782,6 +2964,7 @@ function readPiezaRows(){
 async function handleInspSubmit(){
   const matricula = document.getElementById('i-matricula').value.trim().toUpperCase();
   const marca = document.getElementById('i-marca').value.trim();
+  const cliente = document.getElementById('i-cliente').value.trim();
   const bastidor = document.getElementById('i-bastidor').value.trim().toUpperCase();
   const fechaRaw = document.getElementById('i-fecha').value.trim();
   const msg = document.getElementById('insp-form-msg');
@@ -2816,6 +2999,7 @@ async function handleInspSubmit(){
     if(insp){
       insp.matricula = matricula;
       insp.marca = marca;
+      insp.cliente = cliente;
       insp.bastidor = bastidor;
       insp.fechaMatriculacion = fechaMatriculacion;
       // keep existing pieces (with their states); append/update by name
@@ -2840,7 +3024,7 @@ async function handleInspSubmit(){
 
   const nueva = {
     id: 'insp_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-    matricula, marca, bastidor, fechaMatriculacion,
+    matricula, marca, cliente, bastidor, fechaMatriculacion,
     piezas: mkPiezas(),
     creada: new Date().toISOString()
   };
@@ -2860,6 +3044,7 @@ function startEditInsp(id){
   editingInspId = id;
   document.getElementById('i-matricula').value = insp.matricula;
   document.getElementById('i-marca').value = insp.marca || '';
+  document.getElementById('i-cliente').value = insp.cliente || '';
   document.getElementById('i-bastidor').value = insp.bastidor || '';
   document.getElementById('i-fecha').value = insp.fechaMatriculacion ? formatFecha(insp.fechaMatriculacion) : '';
   const container = document.getElementById('i-piezas-rows');
@@ -2972,13 +3157,14 @@ createDatePicker('i-fecha', 'i-fecha-cal-btn', 'i-fecha-calendar', 'insp-form-ms
 
 // export / import de inspecciones (copia de seguridad)
 document.getElementById('insp-export-btn').addEventListener('click', async ()=>{
-  const rows = [['Matricula','Marca','Bastidor','Fecha matriculacion','Pieza','Referencia','Estado pieza']];
+  const rows = [['Matricula','Marca','Cliente','Bastidor','Fecha matriculacion','Pieza','Referencia','Estado pieza']];
   inspecciones.forEach(insp=>{
+    const base = [insp.matricula, insp.marca||'', insp.cliente||'', insp.bastidor||'', insp.fechaMatriculacion||''];
     if(insp.piezas.length === 0){
-      rows.push([insp.matricula, insp.marca||'', insp.bastidor||'', insp.fechaMatriculacion||'', '', '', '']);
+      rows.push(base.concat(['', '', '']));
     } else {
       insp.piezas.forEach(pz=>{
-        rows.push([insp.matricula, insp.marca||'', insp.bastidor||'', insp.fechaMatriculacion||'', pz.nombre, pz.referencia||'', pz.estado||'pendiente']);
+        rows.push(base.concat([pz.nombre, pz.referencia||'', pz.estado||'pendiente']));
       });
     }
   });
@@ -3043,6 +3229,7 @@ function inspeccionesDesdeCSV(text){
   const idx = (name) => header.indexOf(name);
   const iMat = idx('matricula');
   const iMarca = idx('marca');
+  const iCliente = idx('cliente');
   const iBast = idx('bastidor');
   const iFecha = idx('fecha matriculacion');
   const iPieza = idx('pieza');
@@ -3060,6 +3247,7 @@ function inspeccionesDesdeCSV(text){
         id: 'insp_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
         matricula,
         marca: get(r,iMarca),
+        cliente: get(r,iCliente),
         bastidor: get(r,iBast).toUpperCase(),
         fechaMatriculacion: get(r,iFecha),
         creada: new Date().toISOString(),

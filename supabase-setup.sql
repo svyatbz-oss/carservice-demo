@@ -26,12 +26,16 @@ create table if not exists inspeccion_items (
   id                  text primary key,
   matricula           text,
   marca               text,
+  cliente             text,
   bastidor            text,
   fecha_matriculacion text,
   creada              text,
   piezas              jsonb default '[]'::jsonb,
   updated_at          timestamptz default now()
 );
+
+-- Si ya tenías la tabla de una version anterior, esto le anade el campo nuevo.
+alter table inspeccion_items add column if not exists cliente text;
 
 -- 3) COPIAS DE SEGURIDAD — instantáneas con fecha para "restaurar" ----------
 create table if not exists backups (
