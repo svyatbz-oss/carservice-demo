@@ -18,8 +18,16 @@ create table if not exists pedido_items (
   fecha_pedido   text,
   estado         text,
   fecha_recibido text,
+  insp_id        text,   -- de qué pieza de inspección salió este pedido
+  pieza_id       text,
+  anotado_por    text,
   updated_at     timestamptz default now()
 );
+
+-- Si ya tenías la tabla de una versión anterior, esto le añade los campos nuevos.
+alter table pedido_items add column if not exists insp_id     text;
+alter table pedido_items add column if not exists pieza_id    text;
+alter table pedido_items add column if not exists anotado_por text;
 
 -- 2) INSPECCIONES — una fila por coche (las piezas van en JSON dentro) ------
 create table if not exists inspeccion_items (
@@ -30,12 +38,14 @@ create table if not exists inspeccion_items (
   bastidor            text,
   fecha_matriculacion text,
   creada              text,
+  anotado_por         text,
   piezas              jsonb default '[]'::jsonb,
   updated_at          timestamptz default now()
 );
 
--- Si ya tenías la tabla de una version anterior, esto le anade el campo nuevo.
-alter table inspeccion_items add column if not exists cliente text;
+-- Si ya tenías la tabla de una versión anterior, esto le añade los campos nuevos.
+alter table inspeccion_items add column if not exists cliente     text;
+alter table inspeccion_items add column if not exists anotado_por text;
 
 -- 3) COPIAS DE SEGURIDAD — instantáneas con fecha para "restaurar" ----------
 create table if not exists backups (
@@ -46,11 +56,19 @@ create table if not exists backups (
   inspecciones jsonb
 );
 
--- 4) Seguridad: solo usuarios con sesión iniciada pueden leer y escribir ----
+-- 4) AGENDA DE PROVEEDORES — para que "Reclamar" abra el WhatsApp correcto --
+create table if not exists proveedores (
+  nombre     text primary key,
+  telefono   text,
+  updated_at timestamptz default now()
+);
+
+-- 5) Seguridad: solo usuarios con sesión iniciada pueden leer y escribir ----
 --    Sin esto, cualquiera con la URL podría ver o modificar los datos.
 alter table pedido_items     enable row level security;
 alter table inspeccion_items enable row level security;
 alter table backups          enable row level security;
+alter table proveedores      enable row level security;
 
 drop policy if exists "acceso autenticado" on pedido_items;
 create policy "acceso autenticado" on pedido_items
@@ -62,6 +80,10 @@ create policy "acceso autenticado" on inspeccion_items
 
 drop policy if exists "acceso autenticado" on backups;
 create policy "acceso autenticado" on backups
+  for all to authenticated using (true) with check (true);
+
+drop policy if exists "acceso autenticado" on proveedores;
+create policy "acceso autenticado" on proveedores
   for all to authenticated using (true) with check (true);
 
 -- ============================================================

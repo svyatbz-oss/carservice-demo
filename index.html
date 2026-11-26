@@ -393,6 +393,69 @@
     flex-shrink:0;
   }
 
+  .whoami-btn{
+    border:1px solid var(--line);
+    background:var(--surface);
+    color:var(--muted);
+    border-radius:999px;
+    padding:5px 12px;
+    font-family:'Barlow',sans-serif;
+    font-size:0.78rem;
+    font-weight:600;
+    cursor:pointer;
+    align-self:center;
+    max-width:140px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .whoami-btn{margin-left:auto;}
+  .whoami-btn:hover{color:var(--ink); border-color:var(--muted);}
+  .ticket-autor{font-size:0.72rem; color:var(--muted);}
+
+  /* Buscador: lo primero que se ve y siempre al alcance */
+  .buscador{
+    position:sticky;
+    /* Justo debajo de la barra superior, que también es pegajosa. */
+    top:var(--topbar-h, 57px);
+    z-index:20;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:0 16px;
+    margin:0 0 18px;
+    box-shadow:0 0 0 10px var(--bg), 0 1px 2px rgba(60,52,20,0.04);
+  }
+  .buscador:focus-within{border-color:var(--ink);}
+  .buscador-lupa{width:18px; height:18px; color:var(--muted); flex-shrink:0;}
+  .buscador input{
+    flex:1;
+    min-width:0;
+    border:none;
+    background:transparent;
+    padding:14px 0;
+    font-family:'Barlow',sans-serif;
+    font-size:1rem;
+    color:var(--ink);
+  }
+  .buscador input:focus{outline:none;}
+  .buscador-limpiar{
+    border:none;
+    background:transparent;
+    color:var(--muted);
+    font-size:1.3rem;
+    line-height:1;
+    padding:4px 2px;
+    cursor:pointer;
+    display:none;
+  }
+  .buscador.tiene-texto .buscador-limpiar{display:block;}
+  .buscador-limpiar:hover{color:var(--ink);}
+  .search-row:empty{display:none;}
+
   /* Section headers */
   .section-head{
     display:flex;
@@ -431,6 +494,21 @@
     margin:0 2px 10px;
     padding-bottom:6px;
     border-bottom:1px solid var(--line);
+  }
+  .month-total{
+    margin-left:auto;
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;
+    font-size:0.85rem;
+    text-transform:none;
+    letter-spacing:0;
+    color:var(--accent-dark);
+  }
+  .lista-recorte{
+    font-size:0.82rem;
+    color:var(--muted);
+    text-align:center;
+    padding:12px 8px 4px;
   }
   .month-count{
     font-weight:500;
@@ -723,6 +801,10 @@
   }
   .insp-state.en-pedido{background:var(--orange-bg-strong); color:var(--orange-text);}
   .insp-state.pedido{background:var(--success-bg); color:var(--success-text);}
+  /* Se pulsó "Pedir" pero el pedido nunca se guardó: hay que verlo. */
+  .insp-state.falta{background:var(--orange-bg-strong); color:var(--orange-text);}
+  .insp-pedido-info{font-size:0.78rem; color:var(--muted); margin-top:2px;}
+  .insp-pedido-info.falta{color:var(--orange-text); font-weight:500;}
   .btn-pedir{
     background:var(--accent-dark);
     color:#fff;
@@ -828,6 +910,7 @@
       min-height:0;
     }
     .brandmark{order:1;}
+    .whoami-btn{order:2; max-width:100px;}
     .logout-btn{order:2;}
     .tabs{order:3; width:100%; margin-top:6px;}
     .tab{flex:1; justify-content:center; padding:10px 8px;}
@@ -993,7 +1076,6 @@
 
   /* Login gate */
   .logout-btn{
-    margin-left:auto;
     align-self:center;
     background:none;
     border:1px solid var(--line);
@@ -1286,6 +1368,7 @@
       <button class="tab" id="tab-inspecciones" role="tab" onclick="switchView('inspecciones')">Inspecciones</button>
       <button class="tab active" id="tab-pedidos" role="tab" onclick="switchView('pedidos')">Pedidos</button>
     </nav>
+    <button type="button" id="whoami-btn" class="whoami-btn" title="Quién está usando la app en este dispositivo">¿Quién eres?</button>
     <button type="button" id="logout-btn" class="logout-btn">Salir</button>
   </div>
 </header>
@@ -1297,6 +1380,11 @@
   </header>
 
   <section id="view-pedidos" class="view">
+  <div class="buscador">
+    <svg class="buscador-lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input type="text" id="search" placeholder="Buscar coche por matrícula, pieza o proveedor…">
+    <button type="button" class="buscador-limpiar" data-limpia="search" aria-label="Limpiar búsqueda">×</button>
+  </div>
   <div class="add-card">
     <h2>Nuevo pedido</h2>
     <form id="add-form" autocomplete="off">
@@ -1318,7 +1406,7 @@
         <datalist id="proveedores-list"></datalist>
       </div>
       <div class="field">
-        <label for="f-precio">Precio sin descuento (€)</label>
+        <label for="f-precio">Precio sin IVA ni descuento (€)</label>
         <input id="f-precio" type="number" inputmode="decimal" step="0.01" min="0" placeholder="45.00" required>
       </div>
       <div class="field">
@@ -1361,7 +1449,6 @@
   </div>
 
   <div class="search-row">
-    <input type="text" id="search" placeholder="Buscar por matrícula, pieza o proveedor...">
     <button class="csv-btn" id="export-btn">Exportar CSV</button>
     <button class="csv-btn" id="pdf-btn">Descargar PDF</button>
   </div>
@@ -1386,6 +1473,11 @@
   </section>
 
   <section id="view-inspecciones" class="view" style="display:none;">
+    <div class="buscador">
+      <svg class="buscador-lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="text" id="insp-search" placeholder="Buscar coche por matrícula, modelo, pieza o cliente…">
+      <button type="button" class="buscador-limpiar" data-limpia="insp-search" aria-label="Limpiar búsqueda">×</button>
+    </div>
     <div class="add-card">
       <h2 id="insp-form-title">Nueva inspección</h2>
       <form id="insp-form" autocomplete="off">
@@ -1444,7 +1536,6 @@
     </div>
 
     <div class="search-row">
-      <input type="text" id="insp-search" placeholder="Buscar por matrícula, modelo o pieza...">
       <button class="csv-btn" id="insp-export-btn">Exportar CSV</button>
     </div>
     <div class="import-row">
@@ -1474,6 +1565,16 @@
     <div class="modal-actions">
       <button id="confirm-cancel" class="btn-secondary">Cancelar</button>
       <button id="confirm-ok" class="btn-primary">Confirmar</button>
+    </div>
+  </div>
+</div>
+<div id="prompt-modal" class="modal-overlay">
+  <div class="modal-box">
+    <p id="prompt-message"></p>
+    <input id="prompt-input" type="text" autocomplete="off">
+    <div class="modal-actions">
+      <button id="prompt-cancel" class="btn-secondary">Cancelar</button>
+      <button id="prompt-ok" class="btn-primary">Guardar</button>
     </div>
   </div>
 </div>
@@ -1511,6 +1612,34 @@ const BACKUP_KEY = 'pedidos-last-backup';
 let pedidos = [];
 let inspecciones = [];
 let historialVisible = false;
+// Quien esta usando la app en este dispositivo. Sirve para saber quien anoto
+// cada cosa sin montar un usuario por persona en la base de datos.
+function nombreUsuario(){
+  try{ return localStorage.getItem('carservice-usuario') || ''; }catch(e){ return ''; }
+}
+function guardarNombreUsuario(n){
+  try{ localStorage.setItem('carservice-usuario', n); }catch(e){}
+}
+async function pedirNombreUsuario(){
+  const n = await showPrompt('¿Quién está usando la app en este dispositivo? Se guardará junto a lo que anotes, para saber después quién hizo cada cosa.', nombreUsuario(), 'Nombre');
+  if(n === null) return;
+  guardarNombreUsuario(n);
+  pintarNombreUsuario();
+  render(); renderInspecciones();
+  showToast(n ? ('Hecho. A partir de ahora se anota como ' + n + '.') : 'Nombre borrado.');
+}
+// La barra superior mide distinto en móvil, así que se mide de verdad.
+function ajustarAlturaTopbar(){
+  const tb = document.querySelector('.topbar');
+  if(tb) document.documentElement.style.setProperty('--topbar-h', Math.ceil(tb.getBoundingClientRect().height) + 'px');
+}
+window.addEventListener('resize', ajustarAlturaTopbar);
+window.addEventListener('orientationchange', ajustarAlturaTopbar);
+
+function pintarNombreUsuario(){
+  const btn = document.getElementById('whoami-btn');
+  if(btn) btn.textContent = nombreUsuario() || '¿Quién eres?';
+}
 let inspHechasVisible = false;
 let expandedGroups = new Set(); // cards start collapsed; a key here means expanded
 let lastBackupISO = null;
@@ -1607,6 +1736,56 @@ async function sbFetch(url, options = {}){
 const T_PED = 'pedido_items';
 const T_INS = 'inspeccion_items';
 const T_BAK = 'backups';
+const T_PROV = 'proveedores';
+
+// Teléfonos de los proveedores: sin esto, "Reclamar" abre WhatsApp sin
+// destinatario y hay que buscar el contacto a mano cada vez.
+let proveedorTels = {};
+
+// Si la tabla todavía no existe en la base de datos, los teléfonos se guardan
+// en este dispositivo: la función sigue sirviendo, solo que no se comparte.
+let tablaProveedores = true;
+
+function telsLocales(){
+  try{ return JSON.parse(localStorage.getItem('proveedores-tel') || '{}'); }catch(e){ return {}; }
+}
+function guardarTelsLocales(){
+  try{ localStorage.setItem('proveedores-tel', JSON.stringify(proveedorTels)); }catch(e){}
+}
+
+async function loadProveedores(){
+  if(usingSupabase()){
+    try{
+      const res = await sbFetch(`${SUPABASE_URL}/rest/v1/${T_PROV}?select=*`);
+      if(res.status === 404 || res.status === 400){ tablaProveedores = false; return telsLocales(); }
+      if(!res.ok) return telsLocales();
+      const out = {};
+      (await res.json()).forEach(r=>{ if(r.nombre) out[normProv(r.nombre)] = r.telefono || ''; });
+      return out;
+    }catch(e){ return telsLocales(); }
+  }
+  return telsLocales();
+}
+
+async function saveProveedorTel(nombre, telefono){
+  proveedorTels[normProv(nombre)] = telefono;
+  guardarTelsLocales();   // siempre, como respaldo
+  if(usingSupabase() && tablaProveedores){
+    try{ await sbUpsertRow2(T_PROV, { nombre: nombre, telefono: telefono, updated_at: new Date().toISOString() }, 'nombre'); }
+    catch(e){ tablaProveedores = false; }
+  }
+}
+
+function normProv(n){ return (n || '').trim().toLowerCase(); }
+function telDeProveedor(nombre){ return proveedorTels[normProv(nombre)] || ''; }
+
+// Deja el número como lo quiere WhatsApp: solo dígitos, con prefijo de país.
+function telParaWhatsApp(tel){
+  let d = (tel || '').replace(/\D/g, '');
+  if(!d) return '';
+  if(d.length === 9) d = '34' + d;          // móvil español sin prefijo
+  return d;
+}
 
 // Mapeo entre el objeto de la app (camelCase) y la fila de la BD (snake_case)
 function pedidoToRow(p){
@@ -1616,7 +1795,10 @@ function pedidoToRow(p){
     precio: (p.precio != null && !isNaN(p.precio)) ? p.precio : null,
     descuento: (p.descuento != null && !isNaN(p.descuento)) ? p.descuento : 0,
     fecha_pedido: p.fechaPedido || null, estado: p.estado || 'pedido',
-    fecha_recibido: p.fechaRecibido || null, updated_at: new Date().toISOString()
+    fecha_recibido: p.fechaRecibido || null,
+    insp_id: p.inspId || null, pieza_id: p.piezaId || null,
+    anotado_por: p.anotadoPor || null,
+    updated_at: new Date().toISOString()
   };
 }
 function rowToPedido(r){
@@ -1625,35 +1807,51 @@ function rowToPedido(r){
     pieza: r.pieza || '', proveedor: r.proveedor || '',
     precio: r.precio != null ? Number(r.precio) : 0,
     descuento: r.descuento != null ? Number(r.descuento) : 0,
-    fechaPedido: r.fecha_pedido || '', estado: r.estado || 'pedido'
+    fechaPedido: r.fecha_pedido || '', estado: r.estado || 'pedido',
+    inspId: r.insp_id || '', piezaId: r.pieza_id || '',
+    anotadoPor: r.anotado_por || ''
   };
   if(r.fecha_recibido) p.fechaRecibido = r.fecha_recibido;
   return p;
 }
-let inspClienteCol = true; // se pone en false si la base de datos todavia no tiene la columna
-function inspToRow(insp){
-  if(!inspClienteCol){
-    const r = inspToRowFull(insp);
-    delete r.cliente;
-    return r;
+// Columnas añadidas después de la primera versión. Si la base de datos de un
+// taller todavía no las tiene, se guarda el resto en vez de perder la fila
+// entera, y se avisa una vez por columna para que nadie crea que se guardó.
+const COLS_NUEVAS = ['cliente', 'anotado_por', 'insp_id', 'pieza_id'];
+const columnasQueFaltan = new Set();
+const avisadas = new Set();
+
+function limpiarRow(row){
+  if(!columnasQueFaltan.size) return row;
+  const out = {};
+  Object.keys(row).forEach(k=>{ if(!columnasQueFaltan.has(k)) out[k] = row[k]; });
+  return out;
+}
+function columnaQueFalta(e){
+  const msg = String(e && e.message || '');
+  return COLS_NUEVAS.find(c=> !columnasQueFaltan.has(c) && new RegExp("\\b" + c + "\\b").test(msg)) || null;
+}
+function avisarColumna(col){
+  if(avisadas.has(col)) return;
+  avisadas.add(col);
+  showToast('Guardado, pero el campo "' + col + '" no: falta esa columna en la base de datos. Ejecuta supabase-upgrade-2.sql en Supabase.', true);
+}
+// Reintenta quitando las columnas que la base de datos rechace, una a una.
+async function conColumnasDisponibles(accion){
+  try{ return await accion(); }
+  catch(e){
+    const col = columnaQueFalta(e);
+    if(!col) throw e;
+    columnasQueFaltan.add(col);
+    avisarColumna(col);
+    return await conColumnasDisponibles(accion);
   }
-  return inspToRowFull(insp);
 }
-function faltaColumnaCliente(e){
-  return /cliente/i.test(String(e && e.message || ''));
-}
-// Si falta la columna se guarda el resto, pero hay que decirlo: si no,
-// parecería que el cliente se ha guardado cuando no es así.
-let avisoClienteMostrado = false;
-function avisarFaltaColumnaCliente(){
-  if(avisoClienteMostrado) return;
-  avisoClienteMostrado = true;
-  showToast('Guardado, pero el campo Cliente no: falta la columna "cliente" en la base de datos. Ejecuta supabase-cliente.sql en Supabase.', true);
-}
-function inspToRowFull(insp){
+
+function inspToRow(insp){
   return {
     id: insp.id, matricula: insp.matricula, marca: insp.marca || null,
-    cliente: insp.cliente || null,
+    cliente: insp.cliente || null, anotado_por: insp.anotadoPor || null,
     bastidor: insp.bastidor || null, fecha_matriculacion: insp.fechaMatriculacion || null,
     creada: insp.creada || null, piezas: insp.piezas || [], updated_at: new Date().toISOString()
   };
@@ -1663,7 +1861,7 @@ function rowToInsp(r){
   try{ piezas = Array.isArray(r.piezas) ? r.piezas : (r.piezas ? JSON.parse(r.piezas) : []); }catch(e){ piezas = []; }
   return {
     id: r.id, matricula: r.matricula || '', marca: r.marca || '',
-    cliente: r.cliente || '',
+    cliente: r.cliente || '', anotadoPor: r.anotado_por || '',
     bastidor: r.bastidor || '', fechaMatriculacion: r.fecha_matriculacion || '',
     creada: r.creada || '', piezas
   };
@@ -1672,6 +1870,14 @@ function rowToInsp(r){
 // Operaciones por fila
 async function sbUpsertRow(table, rowObj){
   const res = await sbFetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=id`, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'Prefer':'resolution=merge-duplicates' },
+    body: JSON.stringify(rowObj)
+  });
+  if(!res.ok) throw new Error(table + ' upsert ' + res.status + ' ' + await res.text().catch(()=>''));
+}
+async function sbUpsertRow2(table, rowObj, conflictCol){
+  const res = await sbFetch(`${SUPABASE_URL}/rest/v1/${table}?on_conflict=${conflictCol}`, {
     method:'POST',
     headers:{ 'Content-Type':'application/json', 'Prefer':'resolution=merge-duplicates' },
     body: JSON.stringify(rowObj)
@@ -1713,7 +1919,7 @@ async function loadPedidos(){
 // Guardar UN pedido (añadir o editar). No toca los demás pedidos.
 async function savePedido(p){
   if(usingSupabase()){
-    try{ await sbUpsertRow(T_PED, pedidoToRow(p)); }
+    try{ await conColumnasDisponibles(()=> sbUpsertRow(T_PED, limpiarRow(pedidoToRow(p)))); }
     catch(e){ showToast('No se pudieron guardar los cambios en la base de datos.', true); }
     return;
   }
@@ -1731,7 +1937,7 @@ async function removePedido(id){
 // Guardar varios pedidos de golpe (importación).
 async function savePedidosMany(list){
   if(usingSupabase()){
-    try{ await sbInsertMany(T_PED, list.map(pedidoToRow)); }
+    try{ await conColumnasDisponibles(()=> sbInsertMany(T_PED, list.map(x=>limpiarRow(pedidoToRow(x))))); }
     catch(e){ showToast('No se pudieron guardar todos los pedidos.', true); }
     return;
   }
@@ -1757,14 +1963,8 @@ async function loadInspecciones(){
 // Guardar UNA inspección (añadir o editar). No toca las demás.
 async function saveInspeccion(insp){
   if(usingSupabase()){
-    try{ await sbUpsertRow(T_INS, inspToRow(insp)); }
-    catch(e){
-      if(inspClienteCol && faltaColumnaCliente(e)){
-        inspClienteCol = false;
-        try{ await sbUpsertRow(T_INS, inspToRow(insp)); avisarFaltaColumnaCliente(); return; }catch(e2){}
-      }
-      showToast('No se pudieron guardar los cambios en la base de datos.', true);
-    }
+    try{ await conColumnasDisponibles(()=> sbUpsertRow(T_INS, limpiarRow(inspToRow(insp)))); }
+    catch(e){ showToast('No se pudieron guardar los cambios en la base de datos.', true); }
     return;
   }
   try{ localStorage.setItem('inspecciones-data', JSON.stringify(inspecciones)); }catch(e){}
@@ -1781,14 +1981,8 @@ async function removeInspeccion(id){
 // Guardar varias inspecciones de golpe (importación).
 async function saveInspeccionesMany(list){
   if(usingSupabase()){
-    try{ await sbInsertMany(T_INS, list.map(inspToRow)); }
-    catch(e){
-      if(inspClienteCol && faltaColumnaCliente(e)){
-        inspClienteCol = false;
-        try{ await sbInsertMany(T_INS, list.map(inspToRow)); avisarFaltaColumnaCliente(); return; }catch(e2){}
-      }
-      showToast('No se pudieron guardar todas las inspecciones.', true);
-    }
+    try{ await conColumnasDisponibles(()=> sbInsertMany(T_INS, list.map(x=>limpiarRow(inspToRow(x))))); }
+    catch(e){ showToast('No se pudieron guardar todas las inspecciones.', true); }
     return;
   }
   try{ localStorage.setItem('inspecciones-data', JSON.stringify(inspecciones)); }catch(e){}
@@ -1954,6 +2148,34 @@ function showConfirm(message){
   });
 }
 
+// Pregunta un dato corto (nombre, telefono). Devuelve null si se cancela.
+function showPrompt(message, valorInicial, placeholder){
+  return new Promise(resolve=>{
+    const modal = document.getElementById('prompt-modal');
+    const input = document.getElementById('prompt-input');
+    document.getElementById('prompt-message').textContent = message;
+    input.value = valorInicial || '';
+    input.placeholder = placeholder || '';
+    modal.classList.add('show');
+    setTimeout(()=>{ input.focus(); input.select(); }, 30);
+    const okBtn = document.getElementById('prompt-ok');
+    const cancelBtn = document.getElementById('prompt-cancel');
+    function cleanup(result){
+      modal.classList.remove('show');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      input.removeEventListener('keydown', onKey);
+      resolve(result);
+    }
+    function onOk(){ cleanup(input.value.trim()); }
+    function onCancel(){ cleanup(null); }
+    function onKey(e){ if(e.key === 'Enter'){ e.preventDefault(); onOk(); } if(e.key === 'Escape') onCancel(); }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    input.addEventListener('keydown', onKey);
+  });
+}
+
 const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>';
 const ICON_CHEVRON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
 const ICON_UNDO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H10"/></svg>';
@@ -1963,10 +2185,12 @@ function plateHTML(matricula){
 }
 
 function renderSummary(pendientes){
+  const el = document.getElementById('summary');
+  // Con la app vacía, cuatro pastillas de 0,00 € solo son ruido.
+  if(!pendientes.length){ el.innerHTML = ''; return; }
   const totalLista = pendientes.reduce((s,p)=>s+p.precio,0);
   const totalDesc = pendientes.reduce((s,p)=>s+precioFinal(p),0);
   const overdue = pendientes.filter(p=>diasDesde(p.fechaPedido)>=5).length;
-  const el = document.getElementById('summary');
   el.innerHTML = `
     <div class="pill">Pendientes <strong>${pendientes.length}</strong></div>
     <div class="pill">Importe sin descuento <strong>${formatEuro(totalLista)}</strong></div>
@@ -1984,7 +2208,10 @@ function escapeHTML(str){
 
 function matchesQ(p, q){
   if(!q) return true;
-  return p.matricula.toLowerCase().includes(q) || p.pieza.toLowerCase().includes(q) || p.proveedor.toLowerCase().includes(q) || (p.marca||'').toLowerCase().includes(q);
+  // "1234abc" tiene que encontrar la matrícula "1234 ABC".
+  const nq = norm(q);
+  if(nq && norm(p.matricula).includes(nq)) return true;
+  return p.pieza.toLowerCase().includes(q) || p.proveedor.toLowerCase().includes(q) || (p.marca||'').toLowerCase().includes(q);
 }
 
 function pieceRowHTML(p, isHistory){
@@ -2032,7 +2259,7 @@ function pieceRowHTML(p, isHistory){
     <div class="piece-row">
       <div class="piece-body">
         <div class="ticket-pieza">${escapeHTML(p.pieza)}</div>
-        <div class="ticket-meta">${escapeHTML(p.proveedor)} · pedido ${formatFecha(p.fechaPedido)}</div>
+        <div class="ticket-meta">${escapeHTML(p.proveedor)} · pedido ${formatFecha(p.fechaPedido)}${p.anotadoPor ? ` · <span class="ticket-autor">anotado por ${escapeHTML(p.anotadoPor)}</span>` : ''}</div>
       </div>
       ${precioHTML}
       ${right}
@@ -2159,9 +2386,11 @@ function render(){
   const q = document.getElementById('search').value.trim().toLowerCase();
 
   const pendientesList = pedidos.filter(p=>p.estado==='pedido' && matchesQ(p,q));
-  const recibidosList = pedidos.filter(p=>p.estado==='recibido' && matchesQ(p,q))
-    .sort((a,b)=> (b.fechaRecibido||'').localeCompare(a.fechaRecibido||''))
-    .slice(0,300);
+  const recibidosTodos = pedidos.filter(p=>p.estado==='recibido' && matchesQ(p,q))
+    .sort((a,b)=> (b.fechaRecibido||'').localeCompare(a.fechaRecibido||''));
+  const TOPE_RECIBIDOS = 300;
+  const recibidosList = recibidosTodos.slice(0, TOPE_RECIBIDOS);
+  const recibidosOcultos = recibidosTodos.length - recibidosList.length;
 
   renderSummary(pedidos.filter(p=>p.estado==='pedido'));
 
@@ -2171,14 +2400,14 @@ function render(){
     ? pendGroups.map(g=>groupHTML(g,false)).join('')
     : `<div class="empty">No hay pedidos pendientes. Añade el primero arriba.</div>`;
 
-  renderRecibidos(recibidosList);
+  renderRecibidos(recibidosList, recibidosOcultos);
 
   updateProveedoresList();
   renderBackupBanner();
 }
 
 // Recibidos agrupados por mes (según la fecha de recibido).
-function renderRecibidos(list){
+function renderRecibidos(list, ocultos){
   const el = document.getElementById('history-list');
   if(!list.length){
     el.innerHTML = `<div class="empty">Aún no hay piezas recibidas.</div>`;
@@ -2196,11 +2425,21 @@ function renderRecibidos(list){
     const groups = buildGroups(items, true);
     groups.forEach(g=> g.monthKey = ym);
     const n = items.length;
+    // Lo que de verdad se quiere saber de un mes es cuánto se gastó.
+    const gastoMes = conIVA(items.reduce((sum,p)=> sum + precioFinal(p), 0));
     return `<div class="month-group">
-      <div class="month-head">${monthLabel(ym)} <span class="month-count">${n} pieza${n!==1?'s':''}</span></div>
+      <div class="month-head">${monthLabel(ym)}
+        <span class="month-count">${n} pieza${n!==1?'s':''}</span>
+        <span class="month-total">${formatEuro(gastoMes)} con IVA</span>
+      </div>
       ${groups.map(g=>groupHTML(g, true)).join('')}
     </div>`;
   }).join('');
+  // Antes se recortaba a 300 sin decirlo: parecía que faltaba historial.
+  if(ocultos > 0){
+    el.insertAdjacentHTML('beforeend',
+      `<div class="lista-recorte">Se muestran las ${list.length} piezas más recientes. Hay ${ocultos} más: busca por matrícula o pieza para encontrarlas.</div>`);
+  }
 }
 
 function monthLabel(ym){
@@ -2255,6 +2494,8 @@ async function markRecibido(id){
   p.fechaRecibido = todayISO();
   await savePedido(p);
   render();
+  if(p.inspId) renderInspecciones();
+  showToast('Pieza marcada como recibida.');
 }
 
 async function devolverPendiente(id){
@@ -2264,6 +2505,7 @@ async function devolverPendiente(id){
   delete p.fechaRecibido;
   await savePedido(p);
   render();
+  if(p.inspId) renderInspecciones();
   showToast('Pedido devuelto a pendientes.');
 }
 
@@ -2277,6 +2519,16 @@ async function reclamarPedido(id){
   if(!p) return;
   const msg = mensajeReclamacion(p);
 
+  // Si no se conoce el teléfono de este proveedor, se pregunta una vez y queda
+  // guardado para todas las reclamaciones siguientes.
+  let tel = telDeProveedor(p.proveedor);
+  if(!tel){
+    const resp = await showPrompt(`¿Cuál es el WhatsApp de ${p.proveedor}? Se guarda para no tener que buscarlo cada vez. Puedes dejarlo en blanco y elegir el contacto a mano.`, '', 'Ej. 600 123 456');
+    if(resp === null) return;
+    if(resp){ tel = resp; await saveProveedorTel(p.proveedor, resp); }
+  }
+  const telWa = telParaWhatsApp(tel);
+
   // Try to copy to clipboard first, so the message is available either way
   let copied = false;
   try{
@@ -2284,8 +2536,8 @@ async function reclamarPedido(id){
     copied = true;
   }catch(e){}
 
-  // Open WhatsApp with the message pre-filled (user picks the supplier contact there)
-  const url = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  // Con teléfono se abre el chat del proveedor; sin él, WhatsApp pide contacto.
+  const url = 'https://wa.me/' + telWa + '?text=' + encodeURIComponent(msg);
   const win = window.open(url, '_blank');
 
   if(win){
@@ -2331,11 +2583,23 @@ function cancelEdit(){
 async function deletePedido(id){
   const ok = await showConfirm('¿Eliminar este pedido? No se puede deshacer.');
   if(!ok) return;
+  const p = pedidos.find(x=>x.id===id);
+  // Si el pedido venía de una inspección, esa pieza vuelve a estar por pedir:
+  // si no, se quedaría marcada como pedida sin pedido detrás.
+  let inspVuelta = null;
+  if(p && p.inspId && p.piezaId){
+    inspVuelta = inspecciones.find(x=>x.id === p.inspId) || null;
+    if(inspVuelta){
+      const pz = inspVuelta.piezas.find(z=>z.id === p.piezaId);
+      if(pz) pz.estado = 'pendiente';
+    }
+  }
   pedidos = pedidos.filter(x=>x.id!==id);
   if(editingId === id) cancelEdit();
   await removePedido(id);
+  if(inspVuelta){ await saveInspeccion(inspVuelta); renderInspecciones(); }
   render();
-  showToast('Pedido eliminado.');
+  showToast(inspVuelta ? 'Pedido eliminado. La pieza vuelve a estar por pedir.' : 'Pedido eliminado.');
 }
 
 document.getElementById('f-fecha').addEventListener('input', formatFechaInput);
@@ -2459,25 +2723,55 @@ async function handleAddSubmit(){
       p.fechaPedido = fechaPedido;
       await savePedido(p);
       render();
+      if(p.inspId) renderInspecciones();
       showToast('Cambios guardados.');
     }
     cancelEdit();
     return;
   }
 
+  // Pedir dos veces la misma pieza al mismo proveedor se paga dos veces.
+  const yaPedido = pedidos.find(x => x.estado === 'pedido'
+    && norm(x.matricula) === norm(matricula)
+    && norm(x.pieza) === norm(pieza)
+    && norm(x.proveedor) === norm(proveedor));
+  if(yaPedido){
+    const seguir = await showConfirm(`Ya hay un pedido pendiente de "${pieza}" para ${matricula} a ${proveedor}, del ${formatFecha(yaPedido.fechaPedido)}. ¿Añadirlo otra vez de todos modos?`);
+    if(!seguir) return;
+  }
+
   const nuevo = {
     id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
     matricula, marca, pieza, proveedor, precio, descuento, fechaPedido,
-    estado: 'pedido'
+    estado: 'pedido',
+    anotadoPor: nombreUsuario()
   };
+
+  // Si el formulario venía de una pieza de inspección y sigue siendo la misma,
+  // se enlazan: así la pieza se cierra sola y no hay que confirmarla a mano.
+  let inspEnlazada = null;
+  if(pedidoPendiente
+     && norm(pedidoPendiente.matricula) === norm(matricula)
+     && norm(pedidoPendiente.pieza) === norm(pieza)){
+    nuevo.inspId = pedidoPendiente.inspId;
+    nuevo.piezaId = pedidoPendiente.piezaId;
+    inspEnlazada = inspecciones.find(x=>x.id === pedidoPendiente.inspId) || null;
+    if(inspEnlazada){
+      const pz = inspEnlazada.piezas.find(z=>z.id === pedidoPendiente.piezaId);
+      if(pz) pz.estado = 'pedido';
+    }
+    pedidoPendiente = null;
+  }
+
   pedidos.push(nuevo);
   await savePedido(nuevo);
+  if(inspEnlazada){ await saveInspeccion(inspEnlazada); renderInspecciones(); }
   render();
 
   document.getElementById('add-form').reset();
   document.getElementById('f-fecha').value = formatFecha(todayISO());
   document.getElementById('f-matricula').focus();
-  showToast('Pedido añadido.');
+  showToast(inspEnlazada ? 'Pedido añadido. La pieza queda cerrada en la inspección.' : 'Pedido añadido.');
 }
 
 document.getElementById('submit-btn').addEventListener('click', handleAddSubmit);
@@ -2491,7 +2785,28 @@ document.getElementById('add-form').addEventListener('keydown', (e)=>{
 
 document.getElementById('cancel-edit-btn').addEventListener('click', cancelEdit);
 
-document.getElementById('search').addEventListener('input', render);
+// Con cientos de pedidos, redibujar en cada tecla se nota al escribir.
+function conEspera(fn, ms){
+  let t = null;
+  return function(){ clearTimeout(t); t = setTimeout(fn, ms); };
+}
+document.getElementById('search').addEventListener('input', conEspera(render, 180));
+
+// Marca el buscador cuando hay texto (para la × de limpiar).
+document.querySelectorAll('.buscador input').forEach(inp=>{
+  inp.addEventListener('input', ()=> inp.closest('.buscador').classList.toggle('tiene-texto', !!inp.value));
+});
+document.querySelectorAll('.buscador-limpiar').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const inp = document.getElementById(btn.dataset.limpia);
+    inp.value = '';
+    inp.closest('.buscador').classList.remove('tiene-texto');
+    inp.focus();
+    if(btn.dataset.limpia === 'search') render(); else renderInspecciones();
+  });
+});
+
+document.getElementById('whoami-btn').addEventListener('click', pedirNombreUsuario);
 
 document.getElementById('toggle-insp-hechas').addEventListener('click', ()=>{
   inspHechasVisible = !inspHechasVisible;
@@ -2532,9 +2847,10 @@ function saveOrShareFile(blob, filename, mimeType, shareTitle){
 }
 
 document.getElementById('export-btn').addEventListener('click', async ()=>{
-  const rows = [['Matricula','Marca','Pieza','Proveedor','Precio sin descuento','Descuento (%)','Precio con descuento','Fecha pedido','Estado','Fecha recibido']];
+  const rows = [['Matricula','Marca','Pieza','Proveedor','Precio sin IVA','Descuento (%)','Precio con descuento (sin IVA)','Precio con IVA (21%)','Fecha pedido','Estado','Fecha recibido','Anotado por']];
   pedidos.forEach(p=>{
-    rows.push([p.matricula, p.marca||'', p.pieza, p.proveedor, p.precio, p.descuento||0, precioFinal(p), p.fechaPedido, p.estado, p.fechaRecibido||'']);
+    rows.push([p.matricula, p.marca||'', p.pieza, p.proveedor, p.precio, p.descuento||0,
+      precioFinal(p), precioConIVA(p), p.fechaPedido, p.estado, p.fechaRecibido||'', p.anotadoPor||'']);
   });
   // ';' + CRLF + BOM: se abre bien en Excel (Windows), Numbers (iOS) y Sheets (Android)
   const csv = '\uFEFF' + rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');
@@ -2585,8 +2901,8 @@ function generarPDF(){
   function piezaLinea(p, isHistory){
     const pct = p.descuento || 0;
     const precioStr = pct > 0
-      ? `${formatEuro(p.precio)} -> ${formatEuro(precioFinal(p))} (-${pct}%)`
-      : formatEuro(p.precio);
+      ? `${formatEuro(p.precio)} -> ${formatEuro(precioFinal(p))} (-${pct}%) | ${formatEuro(precioConIVA(p))} con IVA`
+      : `${formatEuro(p.precio)} | ${formatEuro(precioConIVA(p))} con IVA`;
     const fechaStr = isHistory
       ? `recibido ${formatFecha(p.fechaRecibido)}`
       : (()=>{
@@ -2602,7 +2918,8 @@ function generarPDF(){
     const extra = totalDesc < totalLista - 0.004 ? `  (lista: ${formatEuro(totalLista)})` : '';
     ensure(9);
     const marcaPDF = g.items.map(p=>p.marca).find(m=>m) || '';
-    writeLine(`${g.matricula}${marcaPDF ? ' · ' + marcaPDF : ''} · ${g.items.length} pieza${g.items.length>1?'s':''} · Total: ${formatEuro(totalDesc)}${extra}`, {bold:true, size:10.5, gap:6});
+    // Con IVA, igual que en la pantalla: antes el PDF decía otra cifra.
+    writeLine(`${g.matricula}${marcaPDF ? ' · ' + marcaPDF : ''} · ${g.items.length} pieza${g.items.length>1?'s':''} · Total con IVA: ${formatEuro(conIVA(totalDesc))}  (sin IVA: ${formatEuro(totalDesc)})${extra}`, {bold:true, size:10.5, gap:6});
     g.items.forEach(p=>piezaLinea(p, isHistory));
     y += 2;
   }
@@ -2761,6 +3078,10 @@ function switchView(view){
   document.getElementById('view-inspecciones').style.display = isPedidos ? 'none' : 'block';
   document.getElementById('tab-pedidos').classList.toggle('active', isPedidos);
   document.getElementById('tab-inspecciones').classList.toggle('active', !isPedidos);
+  // Un lector de pantalla necesita saber cuál está activa.
+  document.getElementById('tab-pedidos').setAttribute('aria-selected', String(isPedidos));
+  document.getElementById('tab-inspecciones').setAttribute('aria-selected', String(!isPedidos));
+  try{ localStorage.setItem('carservice-vista', view); }catch(e){}
   document.getElementById('page-title').textContent = isPedidos ? 'Pedidos de piezas' : 'Inspecciones';
   document.getElementById('page-subtitle').textContent = isPedidos
     ? 'Anota el pedido en cuanto cuelgues el WhatsApp con el proveedor. No se pierde nada.'
@@ -2770,7 +3091,9 @@ function switchView(view){
 
 function inspMatchesQ(insp, q){
   if(!q) return true;
-  if(insp.matricula.toLowerCase().includes(q)) return true;
+  const nq = norm(q);
+  if(nq && norm(insp.matricula).includes(nq)) return true;
+  if(nq && norm(insp.bastidor).includes(nq)) return true;
   if((insp.marca||'').toLowerCase().includes(q)) return true;
   if((insp.cliente||'').toLowerCase().includes(q)) return true;
   return insp.piezas.some(pz => pz.nombre.toLowerCase().includes(q));
@@ -2778,16 +3101,26 @@ function inspMatchesQ(insp, q){
 
 function inspPieceRowHTML(insp, pz){
   const estado = pz.estado || 'pendiente';
+  const ped = pedidoDePieza(insp.id, pz.id);   // el pedido real, si llegó a guardarse
   let stateBadge = '';
   let actionBtn = '';
+  let infoHTML = '';
   if(estado === 'pendiente'){
     actionBtn = `<button class="btn-pedir" onclick="pedirPieza('${insp.id}','${pz.id}')">Pedir</button>`;
   } else if(estado === 'en-pedido'){
-    stateBadge = `<span class="insp-state en-pedido">En pedido</span>`;
-    actionBtn = `<button class="btn-deshacer" onclick="deshacerPedir('${insp.id}','${pz.id}')" title="Deshacer: volver a pendiente">${ICON_UNDO}</button>`
-      + `<button class="btn-confirmar" onclick="confirmarPieza('${insp.id}','${pz.id}')" title="Marcar como pedido confirmado">Confirmar</button>`;
+    // Se empezó el pedido pero no se guardó: antes esto quedaba escondido.
+    stateBadge = `<span class="insp-state falta">Falta registrar</span>`;
+    infoHTML = `<div class="insp-pedido-info falta">Se pulsó "Pedir" pero el pedido no llegó a guardarse.</div>`;
+    actionBtn = `<button class="btn-deshacer" onclick="deshacerPedir('${insp.id}','${pz.id}')" title="Deshacer: volver a por pedir">${ICON_UNDO}</button>`
+      + `<button class="btn-pedir" onclick="pedirPieza('${insp.id}','${pz.id}')">Continuar</button>`
+      + `<button class="btn-confirmar" onclick="confirmarPieza('${insp.id}','${pz.id}')" title="Se pidió por otro sitio: marcarla como pedida sin registrar el pedido">Ya está pedida</button>`;
   } else if(estado === 'pedido'){
     stateBadge = `<span class="insp-state pedido">Pedido ✓</span>`;
+    if(ped){
+      const recibida = ped.estado === 'recibido' && ped.fechaRecibido;
+      infoHTML = `<div class="insp-pedido-info">${escapeHTML(ped.proveedor)} · ${formatEuro(conIVA(precioFinal(ped)))} con IVA`
+        + (recibida ? ` · recibida ${formatFecha(ped.fechaRecibido)}` : '') + `</div>`;
+    }
   }
   const nombreCls = estado === 'pedido' ? 'insp-pieza-nombre done' : 'insp-pieza-nombre';
   const refHTML = pz.referencia ? `<div class="insp-ref">Ref: ${escapeHTML(pz.referencia)}</div>` : '';
@@ -2796,6 +3129,7 @@ function inspPieceRowHTML(insp, pz){
       <div class="piece-body">
         <div class="${nombreCls}">${escapeHTML(pz.nombre)}</div>
         ${refHTML}
+        ${infoHTML}
       </div>
       ${stateBadge}
       <div class="ticket-actions">
@@ -2822,7 +3156,7 @@ function inspCardHTML(insp){
   } else {
     const pend = total - pedidas;
     resumen = `${pend} por pedir de ${total}`;
-    if(enPedido > 0) resumen += ` · ${enPedido} en pedido`;
+    if(enPedido > 0) resumen += ` · ${enPedido} sin registrar`;
   }
 
   const allDone = total > 0 && pedidas === total;
@@ -3025,6 +3359,7 @@ async function handleInspSubmit(){
   const nueva = {
     id: 'insp_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
     matricula, marca, cliente, bastidor, fechaMatriculacion,
+    anotadoPor: nombreUsuario(),
     piezas: mkPiezas(),
     creada: new Date().toISOString()
   };
@@ -3091,17 +3426,33 @@ async function deletePieza(inspId, piezaId){
 }
 
 // The key flow: "Pedir" -> prefill a new order in Pedidos, mark piece "en-pedido"
+// Pieza de la que viene el formulario de Pedidos ahora mismo (si viene de una).
+let pedidoPendiente = null;
+
+// Normaliza para comparar: sin espacios, guiones ni mayúsculas.
+function norm(txt){
+  return (txt || '').toLowerCase().replace(/[\s-]/g, '');
+}
+
+// El pedido que se creó desde esta pieza, si existe.
+function pedidoDePieza(inspId, piezaId){
+  return pedidos.find(p => p.inspId === inspId && p.piezaId === piezaId) || null;
+}
+
 async function pedirPieza(inspId, piezaId){
   const insp = inspecciones.find(x=>x.id===inspId);
   if(!insp) return;
   const pz = insp.piezas.find(p=>p.id===piezaId);
   if(!pz) return;
 
-  // mark as en-pedido and remember the link
+  // La pieza queda "en pedido" = se empezó, pero el pedido aún no existe.
+  // Al guardar el pedido pasa sola a "pedido"; si no, la tarjeta lo avisa.
   pz.estado = 'en-pedido';
   await saveInspeccion(insp);
 
-  // switch to Pedidos and prefill the form (do NOT auto-create; user adds supplier+price)
+  // Se recuerda de qué pieza viene para enlazar el pedido al guardarlo.
+  pedidoPendiente = { inspId: insp.id, piezaId: pz.id, matricula: insp.matricula, pieza: pz.nombre };
+
   switchView('pedidos');
   document.getElementById('f-matricula').value = insp.matricula;
   document.getElementById('f-marca').value = insp.marca || '';
@@ -3142,7 +3493,7 @@ async function deshacerPedir(inspId, piezaId){
 // wire up inspection form
 document.getElementById('insp-submit-btn').addEventListener('click', handleInspSubmit);
 document.getElementById('insp-cancel-btn').addEventListener('click', cancelEditInsp);
-document.getElementById('insp-search').addEventListener('input', renderInspecciones);
+document.getElementById('insp-search').addEventListener('input', conEspera(renderInspecciones, 180));
 document.getElementById('i-add-pieza-row').addEventListener('click', ()=> addPiezaRow('', ''));
 document.getElementById('i-matricula').addEventListener('input', (e)=>{
   const marcaInput = document.getElementById('i-marca');
@@ -3311,9 +3662,17 @@ async function startApp(){
     appStarted = true;
     document.getElementById('f-fecha').value = formatFecha(todayISO());
     resetPiezaRows();
+    pintarNombreUsuario();
+    ajustarAlturaTopbar();
+    // Se vuelve a la pestaña en la que se estaba, en vez de siempre a Pedidos.
+    try{
+      const ultima = localStorage.getItem('carservice-vista');
+      if(ultima === 'inspecciones') switchView('inspecciones');
+    }catch(e){}
   }
   pedidos = await loadPedidos();
   inspecciones = await loadInspecciones();
+  proveedorTels = await loadProveedores();
   render();
   renderInspecciones();
   autoBackup(); // copia automática diaria (no bloquea la interfaz)
